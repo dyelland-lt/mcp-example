@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {Server} from "@modelcontextprotocol/sdk/server/index.js";
+import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
+  ListResourceTemplatesRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
 /**
@@ -21,20 +22,20 @@ import {
 const server = new Server(
   {
     name: "example-mcp-server",
-    version: "1.0.0",
+    version: "1.0.0"
   },
   {
     capabilities: {
       tools: {},
-      resources: {},
-    },
+      resources: {}
+    }
   }
 );
 
 // Sample in-memory data store
-const notes: { [key: string]: string } = {
-  "welcome": "Welcome to the example MCP server!",
-  "info": "This server demonstrates basic MCP capabilities.",
+const notes: {[key: string]: string} = {
+  welcome: "Welcome to the example MCP server!",
+  info: "This server demonstrates basic MCP capabilities."
 };
 
 /**
@@ -51,15 +52,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             a: {
               type: "number",
-              description: "First number",
+              description: "First number"
             },
             b: {
               type: "number",
-              description: "Second number",
-            },
+              description: "Second number"
+            }
           },
-          required: ["a", "b"],
-        },
+          required: ["a", "b"]
+        }
       },
       {
         name: "echo",
@@ -69,11 +70,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             message: {
               type: "string",
-              description: "Message to echo back",
-            },
+              description: "Message to echo back"
+            }
           },
-          required: ["message"],
-        },
+          required: ["message"]
+        }
       },
       {
         name: "create_note",
@@ -83,25 +84,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             key: {
               type: "string",
-              description: "Unique key for the note",
+              description: "Unique key for the note"
             },
             content: {
               type: "string",
-              description: "Content of the note",
-            },
+              description: "Content of the note"
+            }
           },
-          required: ["key", "content"],
-        },
+          required: ["key", "content"]
+        }
       },
       {
         name: "get_timestamp",
         description: "Get the current server timestamp",
         inputSchema: {
           type: "object",
-          properties: {},
-        },
-      },
-    ],
+          properties: {}
+        }
+      }
+    ]
   };
 });
 
@@ -109,7 +110,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * Handler for calling tools
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  const {name, arguments: args} = request.params;
 
   switch (name) {
     case "add": {
@@ -120,9 +121,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `${a} + ${b} = ${result}`,
-          },
-        ],
+            text: `${a} + ${b} = ${result}`
+          }
+        ]
       };
     }
 
@@ -132,9 +133,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `Echo: ${message}`,
-          },
-        ],
+            text: `Echo: ${message}`
+          }
+        ]
       };
     }
 
@@ -146,9 +147,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `Note created with key: ${key}`,
-          },
-        ],
+            text: `Note created with key: ${key}`
+          }
+        ]
       };
     }
 
@@ -158,9 +159,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `Current timestamp: ${timestamp}`,
-          },
-        ],
+            text: `Current timestamp: ${timestamp}`
+          }
+        ]
       };
     }
 
@@ -179,13 +180,13 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
         uri: "note://welcome",
         name: "Welcome Note",
         mimeType: "text/plain",
-        description: "A welcome message",
+        description: "A welcome message"
       },
       {
         uri: "note://info",
         name: "Info Note",
         mimeType: "text/plain",
-        description: "Information about this server",
+        description: "Information about this server"
       },
       ...Object.keys(notes)
         .filter((key) => !["welcome", "info"].includes(key))
@@ -193,9 +194,37 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
           uri: `note://${key}`,
           name: `Note: ${key}`,
           mimeType: "text/plain",
-          description: `User-created note with key: ${key}`,
-        })),
-    ],
+          description: `User-created note with key: ${key}`
+        }))
+    ]
+  };
+});
+
+/**
+ * Handler for listing available resource templates
+ */
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+  return {
+    resourceTemplates: [
+      {
+        uriTemplate: "note://{key}",
+        name: "Note by Key",
+        description: "Access any note by its key",
+        mimeType: "text/plain"
+      },
+      {
+        uriTemplate: "user://{userId}/profile",
+        name: "User Profile",
+        description: "Get user profile information by user ID",
+        mimeType: "application/json"
+      },
+      {
+        uriTemplate: "file://{path}",
+        name: "File Content",
+        description: "Access file content by path",
+        mimeType: "text/plain"
+      }
+    ]
   };
 });
 
@@ -222,9 +251,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       {
         uri,
         mimeType: "text/plain",
-        text: content,
-      },
-    ],
+        text: content
+      }
+    ]
   };
 });
 

@@ -1,11 +1,15 @@
 {
   "servers": {
     "examplemcp": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["/Users/dyelland/Repos/mcp-example/build/index.js"],
+      "command": "tsx",
+      "args": ["src/index.ts"],
       "env": {
-        "input_value": "${input:my_auth_token}"
+        "HOME": "/Users/dyelland",
+        "LOGNAME": "dyelland",
+        "PATH": "/Users/dyelland/Library/Caches/pnpm/dlx/6c12a836384555f1bcee33a4e2738a5798ef564f48197fe974dd839c765d255d/19aa2d1d615-5ee6/node_modules/.bin:/Users/dyelland/Repos/mcp-example/node_modules/.bin:/Users/dyelland/.cache/node/corepack/v1/pnpm/10.6.3/dist/node-gyp-bin:/opt/homebrew/opt/scala@2.13/bin:/Users/dyelland/.nvm/versions/node/v22.15.0/bin:/Users/dyelland/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/dyelland/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/Users/dyelland/.nvm/versions/node/v22.15.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Users/dyelland/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/dyelland/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/opt/homebrew/opt/scala@2.13/bin:/Users/dyelland/Library/pnpm:/Users/dyelland/.nvm/versions/node/v22.15.0/bin:/Users/dyelland/Library/Application Support/Coursier/bin:/Users/dyelland/Library/Application Support/Coursier/bin",
+        "SHELL": "/bin/zsh",
+        "TERM": "xterm-256color",
+        "USER": "dyelland"
       }
     }
   },
