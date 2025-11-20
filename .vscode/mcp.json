@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "examplemcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/Users/dyelland/Repos/mcp-example/build/index.js"],
+      "env": {
+        "input_value": "${input:my_auth_token}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "my_auth_token",
+      "description": "Secret auth token or API key to inject on start up",
+      "password": true
+    }
+  ]
+}

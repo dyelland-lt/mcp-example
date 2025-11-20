@@ -21,12 +21,12 @@ This server provides:
 
 1. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 2. Build the server:
 ```bash
-npm run build
+pnpm build
 ```
 
 ## Usage
@@ -35,12 +35,12 @@ npm run build
 
 Run the server directly:
 ```bash
-npm start
+pnpm start
 ```
 
 Or build and run in one command:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ### Using with Claude Desktop
