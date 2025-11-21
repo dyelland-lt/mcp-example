@@ -6,10 +6,10 @@
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc && node build/index.js",
+    "start:stdio": "tsc && node build/index.js",
     "start:http": "tsc && node build/index-http.js",
-    "dev:stdio": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty:stdio",
-    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty:http"
+    "dev:stdio": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_stdio",
+    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http"
   },
   "keywords": [
     "mcp",

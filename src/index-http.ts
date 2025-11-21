@@ -2,15 +2,16 @@
 
 import express from "express";
 import cors from "cors";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { randomUUID } from "crypto";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMCPServer } from "./server.js";
 
 /**
- * HTTP Server for MCP with Server-Sent Events (SSE)
+ * HTTP Server for MCP with Streamable HTTP Transport
  *
- * This server uses SSE for MCP communication, which is required for OAuth support.
- * The SSE transport allows the server to maintain persistent connections with clients
- * and handle bidirectional communication over HTTP.
+ * This server uses streamable HTTP for MCP communication, which is required for OAuth support.
+ * The streamable HTTP transport supports both SSE streaming and direct HTTP responses,
+ * allowing for bidirectional communication over standard HTTP.
  */
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
@@ -32,56 +33,54 @@ app.get("/health", (_req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// MCP SSE endpoint
-app.get("/sse", async (req, res) => {
-  console.log("New SSE connection established");
+// Create a single MCP server instance
+const server = createMCPServer();
 
-  // Set headers for SSE
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  // Create a new MCP server instance for this connection
-  const server = createMCPServer();
-
-  // Create SSE transport
-  const transport = new SSEServerTransport("/messages", res);
-
-  // Connect the server to the transport
-  await server.connect(transport);
-
-  console.log("MCP server connected via SSE");
-
-  // Handle client disconnect
-  req.on("close", () => {
-    console.log("SSE connection closed");
-    server.close();
-  });
+// Create transport in stateless mode (no session ID required)
+// For stateful mode with sessions, set sessionIdGenerator: () => randomUUID()
+const transport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: undefined
 });
 
-// MCP message endpoint (for client-to-server messages)
-app.post("/messages", async (req, res) => {
-  // This endpoint is handled by the SSE transport
-  // We need to route messages to the appropriate server instance
-  // For now, return a simple acknowledgment
-  res.json({ received: true });
+// Connect the server to the transport
+await server.connect(transport);
+
+// MCP endpoint for streamable HTTP (handles both GET for SSE and POST for messages)
+app.all("/mcp", async (req, res) => {
+  console.log(`${req.method} request to /mcp`);
+
+  try {
+    // Handle the request through the transport
+    // For POST requests, express.json() middleware has already parsed req.body
+    await transport.handleRequest(req, res, req.body);
+    console.log(`${req.method} request completed`);
+  } catch (error) {
+    console.error("Error handling MCP request:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
 });
 
 // Start the server
-app.listen(PORT, HOST, () => {
+const httpServer = app.listen(PORT, HOST, () => {
   console.log(`MCP HTTP Server running on http://${HOST}:${PORT}`);
-  console.log(`SSE endpoint: http://${HOST}:${PORT}/sse`);
+  console.log(`MCP endpoint: http://${HOST}:${PORT}/mcp`);
   console.log(`Health check: http://${HOST}:${PORT}/health`);
-  console.log("\nTo connect, use the SSE endpoint with an MCP client.");
+  console.log("\nSupports both SSE (GET /mcp) and direct messages (POST /mcp)");
+  console.log("MCP server ready");
 });
 
 // Handle graceful shutdown
-process.on("SIGINT", () => {
+const shutdown = async () => {
   console.log("\nShutting down server...");
-  process.exit(0);
-});
+  await transport.close();
+  await server.close();
+  httpServer.close(() => {
+    console.log("Server closed");
+    process.exit(0);
+  });
+};
 
-process.on("SIGTERM", () => {
-  console.log("\nShutting down server...");
-  process.exit(0);
-});
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
