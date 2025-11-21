@@ -2,9 +2,11 @@
 
 import express from "express";
 import cors from "cors";
-import { randomUUID } from "crypto";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createMCPServer } from "./server.js";
+import {randomUUID} from "crypto";
+import {StreamableHTTPServerTransport} from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import {ProxyOAuthServerProvider} from "@modelcontextprotocol/sdk/server/auth/providers/proxyProvider.js";
+import {mcpAuthRouter} from "@modelcontextprotocol/sdk/server/auth/router.js";
+import {createMCPServer} from "./server.js";
 
 /**
  * HTTP Server for MCP with Streamable HTTP Transport
@@ -20,17 +22,62 @@ const HOST = process.env.HOST || "localhost";
 const app = express();
 
 // Enable CORS for cross-origin requests
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: true,
+    credentials: true
+  })
+);
 
 // Parse JSON bodies
 app.use(express.json());
 
+// Configure OAuth proxy provider with mock OAuth server
+const MOCK_OAUTH_URL = "http://localhost:4000";
+const proxyProvider = new ProxyOAuthServerProvider({
+  endpoints: {
+    authorizationUrl: `${MOCK_OAUTH_URL}/authorize`,
+    tokenUrl: `${MOCK_OAUTH_URL}/token`,
+    revocationUrl: `${MOCK_OAUTH_URL}/revoke`
+  },
+  verifyAccessToken: async (token) => {
+    return {
+      token,
+      clientId: "mock-client-id",
+      scopes: ["openid", "email", "profile"]
+    };
+  },
+  getClient: async (client_id) => {
+    return {
+      client_id,
+      redirect_uris: [`http://${HOST}:${PORT}/callback`]
+    };
+  }
+});
+
+// OAuth protected resource metadata endpoint
+app.get("/.well-known/oauth-protected-resource/mcp", (_req, res) => {
+  res.json({
+    resource: `http://${HOST}:${PORT}/mcp`,
+    authorization_servers: [MOCK_OAUTH_URL],
+    scopes_supported: ["openid", "email", "profile"],
+    bearer_methods_supported: ["header", "body"]
+  });
+});
+
+// Mount MCP auth router
+app.use(
+  mcpAuthRouter({
+    provider: proxyProvider,
+    issuerUrl: new URL(MOCK_OAUTH_URL),
+    baseUrl: new URL(`http://${HOST}:${PORT}`),
+    serviceDocumentationUrl: new URL("https://docs.example.com/")
+  })
+);
+
 // Health check endpoint
 app.get("/health", (_req, res) => {
-  res.json({ status: "healthy", timestamp: new Date().toISOString() });
+  res.json({status: "healthy", timestamp: new Date().toISOString()});
 });
 
 // Create a single MCP server instance
@@ -57,7 +104,7 @@ app.all("/mcp", async (req, res) => {
   } catch (error) {
     console.error("Error handling MCP request:", error);
     if (!res.headersSent) {
-      res.status(500).json({ error: "Internal server error" });
+      res.status(500).json({error: "Internal server error"});
     }
   }
 });

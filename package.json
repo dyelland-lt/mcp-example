@@ -8,8 +8,10 @@
     "build": "tsc",
     "start:stdio": "tsc && node build/index.js",
     "start:http": "tsc && node build/index-http.js",
+    "start:mock-oauth": "tsc && node build/mock-oauth-server.js",
     "dev:stdio": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_stdio",
-    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http"
+    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http",
+    "dev:mock-oauth": "tsx src/mock-oauth-server.ts"
   },
   "keywords": [
     "mcp",
@@ -30,6 +32,7 @@
     "@types/cors": "2.8.19",
     "@types/express": "5.0.5",
     "@types/node": "^22.0.0",
+    "oauth2-mock-server": "8.2.0",
     "tsx": "4.20.6",
     "typescript": "^5.6.3"
   }
