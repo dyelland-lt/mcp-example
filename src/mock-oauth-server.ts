@@ -18,6 +18,8 @@ export async function createOAuth2Middleware(
 ): Promise<{router: RouterType; oauth2Server: OAuth2Server}> {
   const {issuerUrl} = options;
   const router = Router();
+
+  // Configure mock server to accept any redirect URI (development mode)
   const oauth2Server = new OAuth2Server();
 
   // Generate a new RSA key and add it to the keystore
@@ -30,7 +32,7 @@ export async function createOAuth2Middleware(
   const registeredClients = new Map<string, any>();
 
   // Add custom claims to the generated tokens
-  oauth2Server.service.once("beforeTokenSigning", (token: any, req: any) => {
+  oauth2Server.service.on("beforeTokenSigning", (token: any, req: any) => {
     token.payload.sub = "mock-user-123";
     token.payload.email = "user@example.com";
     token.payload.name = "Mock User";
@@ -79,6 +81,20 @@ export async function createOAuth2Middleware(
     });
   });
 
+  // OAuth protected resource metadata endpoint (RFC 9728)
+  // This tells MCP clients where to find the authorization server
+  // The endpoint path should match the resource URL being protected
+  router.get("/.well-known/oauth-protected-resource", (_req, res) => {
+    res.json({
+      resource: issuerUrl, // Must match the canonical resource URI (root in this case)
+      authorization_servers: [issuerUrl],
+      bearer_methods_supported: ["header"],
+      // Note: scopes_supported is OPTIONAL per RFC 9728 Section 3
+      // MCP servers should rely on authorization server metadata for scopes
+      scopes_supported: ["openid", "email", "profile"]
+    });
+  });
+
   // Add OAuth authorization server metadata endpoint
   router.get("/.well-known/oauth-authorization-server", (_req, res) => {
     res.json({
@@ -101,6 +117,33 @@ export async function createOAuth2Middleware(
       ],
       code_challenge_methods_supported: ["S256", "plain"],
       scopes_supported: ["openid", "email", "profile"]
+    });
+  });
+
+  // Add OpenID Connect Discovery endpoint (alternative discovery path)
+  router.get("/.well-known/openid-configuration", (_req, res) => {
+    res.json({
+      issuer: issuerUrl,
+      authorization_endpoint: `${issuerUrl}/authorize`,
+      token_endpoint: `${issuerUrl}/token`,
+      revocation_endpoint: `${issuerUrl}/revoke`,
+      registration_endpoint: `${issuerUrl}/register`,
+      jwks_uri: `${issuerUrl}/jwks`,
+      response_types_supported: ["code", "token"],
+      grant_types_supported: [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials"
+      ],
+      token_endpoint_auth_methods_supported: [
+        "client_secret_basic",
+        "client_secret_post",
+        "none"
+      ],
+      code_challenge_methods_supported: ["S256", "plain"],
+      scopes_supported: ["openid", "email", "profile"],
+      subject_types_supported: ["public"],
+      id_token_signing_alg_values_supported: ["RS256"]
     });
   });
 

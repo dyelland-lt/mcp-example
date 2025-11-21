@@ -229,6 +229,7 @@ The server:
 ## Documentation
 
 - **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference card for common tasks ⭐
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions 🔧
 - **[MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md)** - Overview of HTTP transport conversion
 - **[HTTP_SERVER_GUIDE.md](./HTTP_SERVER_GUIDE.md)** - HTTP server connection guide
 - **[TRANSPORT_COMPARISON.md](./TRANSPORT_COMPARISON.md)** - STDIO vs HTTP comparison

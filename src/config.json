@@ -1,11 +1,6 @@
 {
   "mcpServers": {
-    "rick_n_morty_stdio": {
-      "command": "tsx",
-      "args": ["src/index.ts"],
-      "env": {}
-    },
-    "rick_n_morty_http": {
+    "rick_n_morty": {
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
       "note": "For Streamable HTTP connections, add this URL directly in your MCP Client"

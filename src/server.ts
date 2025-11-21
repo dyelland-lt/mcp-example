@@ -15,13 +15,6 @@ import {
   createOAuthState,
   buildAuthorizationUrl,
   exchangeCodeForToken,
-  discoverAuthorizationFromResource,
-  discoverAuthorizationServerMetadata,
-  validatePKCESupport,
-  determineScopesToRequest,
-  checkInsufficientScope,
-  supportsClientIdMetadata,
-  fetchClientIdMetadata,
   type OAuthConfig
 } from "./oauth.js";
 
