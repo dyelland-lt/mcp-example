@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc",
     "start": "tsc && node build/index.js",
-    "dev": "pnpx @modelcontextprotocol/inspector tsx src/index.ts"
+    "start:http": "tsc && node build/index-http.js",
+    "dev:stdio": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty:stdio",
+    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty:http"
   },
   "keywords": [
     "mcp",
@@ -18,10 +20,15 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "cors": "2.8.5",
+    "express": "5.1.0",
     "graphql": "16.12.0",
     "graphql-request": "7.3.4"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "0.17.2",
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.5",
     "@types/node": "^22.0.0",
     "tsx": "4.20.6",
     "typescript": "^5.6.3"

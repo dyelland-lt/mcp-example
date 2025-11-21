@@ -1,6 +1,22 @@
 # Example MCP Server
 
-A simple example Model Context Protocol (MCP) server that demonstrates basic MCP functionality including tools and resources.
+A simple example Model Context Protocol (MCP) server that demonstrates basic MCP functionality including tools, resources, and OAuth authentication.
+
+## Quick Start
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build the project
+pnpm build
+
+# Run with STDIO transport (for Claude Desktop)
+pnpm start
+
+# Run with HTTP transport (for OAuth support)
+pnpm start:http
+```
 
 ## Features
 
@@ -36,7 +52,11 @@ This implementation complies with the [MCP Authorization Specification](https://
 - ✅ **Insufficient Scope Handling**: Step-up authorization for HTTP 403 responses
 - ✅ **Client ID Metadata Documents**: Support for HTTPS URL-based client identification
 
-**Note on Transport**: This server uses STDIO transport for MCP communication. Per the MCP spec, OAuth authorization is primarily designed for HTTP-based transports. The OAuth implementation here is provided as a reference and for scenarios where the server makes authenticated requests to external HTTP APIs (like GraphQL endpoints).
+**Transport Options**: This server supports both STDIO and HTTP transports:
+- **STDIO transport** (`pnpm start`): For standard MCP communication with clients like Claude Desktop
+- **HTTP transport with SSE** (`pnpm start:http`): For OAuth-enabled MCP communication over HTTP
+
+Per the MCP spec, OAuth authorization is designed for HTTP-based transports. Use the HTTP server (`pnpm start:http`) when you need full OAuth support. The STDIO version can still use OAuth for authenticating requests to external APIs (like GraphQL endpoints).
 
 ### Resources
 - **note://** URI scheme for accessing notes
@@ -59,17 +79,47 @@ pnpm build
 
 ### Running the Server
 
-Run the server directly:
-```bash
-pnpm start
-```
+The server supports two transport modes:
 
-Or build and run in one command:
+#### STDIO Transport (default)
+
+For use with MCP clients that use stdio communication:
+
 ```bash
+# Production mode
+pnpm start
+
+# Development mode with inspector
 pnpm dev
 ```
 
-### Using with Claude Desktop
+#### HTTP Transport (for OAuth support)
+
+For OAuth authentication, use the HTTP server with Server-Sent Events (SSE):
+
+```bash
+# Production mode
+pnpm start:http
+
+# Development mode with hot reload
+pnpm dev:http
+```
+
+The HTTP server will start on `http://localhost:3000` by default. You can configure the host and port:
+
+```bash
+# Custom port and host
+PORT=8080 HOST=0.0.0.0 pnpm start:http
+```
+
+**Endpoints:**
+- `GET /sse` - MCP SSE connection endpoint
+- `POST /messages` - Client-to-server message endpoint
+- `GET /health` - Health check endpoint
+
+### Using with MCP Clients
+
+#### Claude Desktop (STDIO)
 
 To use this MCP server with Claude Desktop, add it to your Claude configuration file:
 
@@ -80,13 +130,29 @@ To use this MCP server with Claude Desktop, add it to your Claude configuration 
   "mcpServers": {
     "example": {
       "command": "node",
-      "args": ["/Users/dyelland/Repos/mcp_example/build/index.js"]
+      "args": ["/Users/dyelland/Repos/mcp-example/build/index.js"]
     }
   }
 }
 ```
 
 After updating the config, restart Claude Desktop.
+
+#### HTTP-based MCP Clients (with OAuth)
+
+For MCP clients that support HTTP transport with OAuth:
+
+1. Start the HTTP server:
+```bash
+pnpm start:http
+```
+
+2. Connect your client to the SSE endpoint:
+```
+http://localhost:3000/sse
+```
+
+3. Use the OAuth tools to authenticate with your API.
 
 ### Testing the Server
 
@@ -132,7 +198,9 @@ The server will automatically:
 ```
 mcp-example/
 ├── src/
-│   ├── index.ts          # Main server implementation
+│   ├── index.ts          # STDIO server entry point
+│   ├── index-http.ts     # HTTP server entry point (OAuth-enabled)
+│   ├── server.ts         # Shared MCP server logic
 │   ├── oauth.ts          # OAuth 2.0 flow with PKCE
 │   └── token-manager.ts  # Token storage and refresh logic
 ├── build/                # Compiled JavaScript (generated)
@@ -146,7 +214,9 @@ mcp-example/
 The server uses:
 - **TypeScript** for type safety
 - **@modelcontextprotocol/sdk** for MCP protocol implementation
-- **stdio** transport for communication
+- **Express** for HTTP server (OAuth-enabled mode)
+- **Server-Sent Events (SSE)** for bidirectional MCP communication over HTTP
+- **STDIO** or **HTTP** transport for communication
 
 ## How It Works
 
@@ -156,7 +226,17 @@ The server:
 3. Maintains an in-memory store for notes
 4. Returns responses according to the MCP protocol specification
 
+## Documentation
+
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference card for common tasks ⭐
+- **[MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md)** - Overview of HTTP transport conversion
+- **[HTTP_SERVER_GUIDE.md](./HTTP_SERVER_GUIDE.md)** - HTTP server connection guide
+- **[TRANSPORT_COMPARISON.md](./TRANSPORT_COMPARISON.md)** - STDIO vs HTTP comparison
+- **[OAUTH_EXAMPLE.md](./OAUTH_EXAMPLE.md)** - OAuth authentication examples
+- **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - MCP specification compliance details
+
 ## Learn More
 
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/authorization)

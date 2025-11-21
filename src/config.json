@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "rick_n_morty:stdio": {
+      "command": "tsx",
+      "args": ["src/index.ts"],
+      "env": {}
+    },
+    "rick_n_morty:http": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
