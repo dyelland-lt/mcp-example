@@ -32,21 +32,7 @@ app.use(
 // Parse JSON bodies
 app.use(express.json());
 
-// Initialize mock OAuth2 server middleware at root
-const {router: oauth2Router} = await createOAuth2Middleware({
-  issuerUrl: BASE_URL
-});
-
-// Mount OAuth2 endpoints at root
-app.use("/", oauth2Router);
-
-console.log("\n🔧 OAuth2 Server Configuration:");
-console.log(`  Issuer URL: ${BASE_URL}`);
-console.log(`  Authorization Endpoint: ${BASE_URL}/authorize`);
-console.log(`  Token Endpoint: ${BASE_URL}/token`);
-console.log(`  Discovery: ${BASE_URL}/.well-known/oauth-authorization-server`);
-
-// Health check endpoint
+// Health check endpoint (MUST be before OAuth router to avoid being caught by catch-all)
 app.get("/health", (_req, res) => {
   res.json({status: "healthy", timestamp: new Date().toISOString()});
 });
@@ -64,6 +50,7 @@ const transport = new StreamableHTTPServerTransport({
 await server.connect(transport);
 
 // MCP endpoint for streamable HTTP (handles both GET for SSE and POST for messages)
+// MUST be before OAuth router to avoid being caught by catch-all
 app.all("/mcp", async (req, res) => {
   console.log(`${req.method} request to /mcp`);
 
@@ -79,6 +66,22 @@ app.all("/mcp", async (req, res) => {
     }
   }
 });
+
+// Initialize mock OAuth2 server middleware
+// IMPORTANT: This MUST be mounted AFTER /health and /mcp routes
+// because it has a catch-all handler that forwards unmatched requests to the OAuth server
+const {router: oauth2Router} = await createOAuth2Middleware({
+  issuerUrl: BASE_URL
+});
+
+// Mount OAuth2 endpoints at root (will handle OAuth paths and forward unknown to mock server)
+app.use("/", oauth2Router);
+
+console.log("\n🔧 OAuth2 Server Configuration:");
+console.log(`  Issuer URL: ${BASE_URL}`);
+console.log(`  Authorization Endpoint: ${BASE_URL}/authorize`);
+console.log(`  Token Endpoint: ${BASE_URL}/token`);
+console.log(`  Discovery: ${BASE_URL}/.well-known/oauth-authorization-server`);
 
 // Start the server
 const httpServer = app.listen(PORT, HOST, () => {

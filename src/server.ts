@@ -107,7 +107,7 @@ export function createMCPServer(): Server {
       tools: [
         {
           name: "query",
-          description: "Query characters, episodes, or locations from the Rick and Morty API. Returns character data including name, status (Alive/Dead/unknown), species, type, gender, origin location, current location, image, and episodes. Note: The API's built-in filters are limited - origin and current location cannot be filtered and must be filtered client-side from results.",
+          description: "Query characters, episodes, or locations from the Rick and Morty API. **REQUIRES OAUTH AUTHENTICATION** - You must authenticate using oauth_configure, oauth_initiate, and oauth_complete before calling this tool. Returns character data including name, status (Alive/Dead/unknown), species, type, gender, origin location, current location, image, and episodes. Note: The API's built-in filters are limited - origin and current location cannot be filtered and must be filtered client-side from results.",
           inputSchema: {
             type: "object",
             properties: {
@@ -413,6 +413,31 @@ export function createMCPServer(): Server {
 
       case "query": {
         try {
+          // Enforce OAuth authentication for GraphQL queries
+          if (!tokenManager.isAuthenticated()) {
+            const config = tokenManager.getConfig();
+            if (!config) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Authentication required. Please configure OAuth first using oauth_configure, then authenticate with oauth_initiate and oauth_complete."
+                  }
+                ],
+                isError: true
+              };
+            }
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Authentication required. Your OAuth session has expired or you haven't authenticated yet. Please use oauth_initiate to start the authentication flow."
+                }
+              ],
+              isError: true
+            };
+          }
+
           const queryType = args?.queryType as string;
           const id = args?.id as number | undefined;
           const ids = args?.ids as number[] | undefined;
@@ -553,11 +578,40 @@ export function createMCPServer(): Server {
             ]
           };
         } catch (error) {
+          // Check if error is due to token expiration or authentication
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+          // If token refresh failed during createGraphQLClient, the tokenManager will have cleared tokens
+          if (!tokenManager.isAuthenticated() && errorMessage.includes('refresh')) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Authentication expired and token refresh failed: ${errorMessage}\n\nPlease re-authenticate using oauth_initiate.`
+                }
+              ],
+              isError: true
+            };
+          }
+
+          // Check for 401/403 authentication errors
+          if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('Unauthorized')) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `GraphQL API authentication error: ${errorMessage}\n\nYour access token may be invalid or lack required permissions. Please check your OAuth configuration and re-authenticate if needed.`
+                }
+              ],
+              isError: true
+            };
+          }
+
           return {
             content: [
               {
                 type: "text",
-                text: `Rick and Morty API Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                text: `Rick and Morty API Error: ${errorMessage}`
               }
             ],
             isError: true
