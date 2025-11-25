@@ -143,8 +143,6 @@ export function createMCPServer(options?: { disableOAuth?: boolean }): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const {name, arguments: args} = request.params;
 
-    console.log('CALL_TOOL', request.params);
-
     // Block OAuth tools if disabled
     if (disableOAuth && name.startsWith("oauth_")) {
       return {

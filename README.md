@@ -242,8 +242,67 @@ The server:
 3. Maintains an in-memory store for notes
 4. Returns responses according to the MCP protocol specification
 
+## OAuth for Stdio Servers
+
+**New!** The server now supports OAuth authentication for stdio transport, where the **MCP server itself** (not the end user) authenticates with OAuth providers.
+
+### Key Features
+- ✅ **offline_access scope** - Refresh tokens for long-lived access
+- ✅ **Automatic token refresh** - Never expires as long as refresh token is valid
+- ✅ **Environment variable configuration** - Easy integration with Claude Desktop
+- ✅ **Helper tools** - Automated token acquisition
+
+### Quick Start
+
+1. **Get OAuth tokens** with the helper tool:
+```bash
+# Start the OAuth mock server
+npm run start:auth
+
+# In another terminal, get tokens
+npm run get-tokens
+```
+
+2. **Set environment variables** (from the output of step 1):
+```bash
+export OAUTH_ACCESS_TOKEN="eyJhbGc..."
+export OAUTH_REFRESH_TOKEN="mock-refresh-token-abc123"
+export OAUTH_TOKEN_URL="http://localhost:4000/token"
+export OAUTH_CLIENT_ID="my-mcp-server"
+```
+
+3. **Run stdio server with OAuth**:
+```bash
+npm run start:stdio:oauth
+```
+
+### For Claude Desktop
+
+Add OAuth credentials to your config:
+```json
+{
+  "mcpServers": {
+    "my-oauth-server": {
+      "command": "node",
+      "args": ["/path/to/build/stdio-server-with-oauth.js"],
+      "env": {
+        "OAUTH_ACCESS_TOKEN": "your-access-token",
+        "OAUTH_REFRESH_TOKEN": "your-refresh-token",
+        "OAUTH_TOKEN_URL": "http://localhost:4000/token",
+        "OAUTH_CLIENT_ID": "your-client-id"
+      }
+    }
+  }
+}
+```
+
+**See [OAUTH_STDIO_QUICKSTART.md](./OAUTH_STDIO_QUICKSTART.md) for complete guide** 🚀
+
 ## Documentation
 
+- **[OAUTH_STDIO_QUICKSTART.md](./OAUTH_STDIO_QUICKSTART.md)** - OAuth for stdio servers quickstart 🚀 **NEW!**
+- **[STDIO_OAUTH_GUIDE.md](./STDIO_OAUTH_GUIDE.md)** - Complete OAuth stdio implementation guide 🔐 **NEW!**
+- **[src/auth-server/README.md](./src/auth-server/README.md)** - Standalone OAuth mock server 🔑 **NEW!**
 - **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference card for common tasks ⭐
 - **[STDIO_SERVER_GUIDE.md](./STDIO_SERVER_GUIDE.md)** - Complete stdio server guide 📡
 - **[STDIO_IMPLEMENTATION.md](./STDIO_IMPLEMENTATION.md)** - Stdio implementation summary

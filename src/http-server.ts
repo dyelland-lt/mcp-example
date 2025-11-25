@@ -4,7 +4,7 @@ import express from "express";
 import cors from "cors";
 import {StreamableHTTPServerTransport} from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {createMCPServer} from "./server.js";
-import {createOAuth2Middleware} from "./mock-oauth-server.js";
+import {createOAuth2Middleware} from "./auth-server/middleware.js";
 
 /**
  * HTTP Server for MCP with Streamable HTTP Transport and OAuth
