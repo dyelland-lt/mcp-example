@@ -2,8 +2,8 @@
   "servers": {
     "rick_n_morty": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["tsx", "${workspaceFolder}/src/server.ts"]
+      "command": "node",
+      "args": ["${workspaceFolder}/build/stdio.js"]
     }
   },
   "inputs": []

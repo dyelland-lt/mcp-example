@@ -4,6 +4,10 @@ import {Server} from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import {GraphQLClient} from "graphql-request";
 
@@ -36,11 +40,13 @@ export function createMCPServer(): Server {
   const server = new Server(
     {
       name: "rick-and-morty-mcp-server",
-      version: "1.0.0"
+      version: "1.0.0",
     },
     {
       capabilities: {
-        tools: {}
+        tools: {},
+        resources: {},
+        prompts: {},
       }
     }
   );
@@ -91,23 +97,237 @@ export function createMCPServer(): Server {
   });
 
   /**
+   * Handler for listing available resources
+   */
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    return {
+      resources: [
+        {
+          uri: "rickandmorty://characters/popular",
+          name: "Popular Characters",
+          description: "A curated list of popular Rick and Morty characters with their details",
+          mimeType: "application/json"
+        },
+        {
+          uri: "rickandmorty://info/api",
+          name: "API Information",
+          description: "Information about the Rick and Morty API capabilities and structure",
+          mimeType: "text/plain"
+        }
+      ]
+    };
+  });
+
+  /**
+   * Handler for reading resources
+   */
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const uri = request.params.uri;
+
+    if (uri === "rickandmorty://characters/popular") {
+      try {
+        const client = await createGraphQLClient();
+        // Get first few main characters (Rick, Morty, Summer, Beth, Jerry)
+        const query = `query {
+          charactersByIds(ids: ["1", "2", "3", "4", "5"]) {
+            id name status species type gender
+            origin { name }
+            location { name }
+            image
+          }
+        }`;
+        const data = await client.request(query);
+
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: "application/json",
+              text: JSON.stringify(data, null, 2)
+            }
+          ]
+        };
+      } catch (error) {
+        throw new Error(`Failed to fetch popular characters: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (uri === "rickandmorty://info/api") {
+      const apiInfo = `Rick and Morty API Information
+================================
+
+Endpoint: ${GRAPHQL_ENDPOINT}
+
+Available Queries:
+- Characters: Query characters by ID, filters (name, status, species, type, gender), or multiple IDs
+- Episodes: Query episodes by ID, filters (name, episode code), or multiple IDs
+- Locations: Query locations by ID, filters (name, type, dimension), or multiple IDs
+
+Character Statuses: Alive, Dead, unknown
+Character Genders: Female, Male, Genderless, unknown
+
+The API supports pagination for list queries (20 results per page by default).
+
+Note: This is a public API with no authentication required.`;
+
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "text/plain",
+            text: apiInfo
+          }
+        ]
+      };
+    }
+
+    throw new Error(`Unknown resource: ${uri}`);
+  });
+
+  /**
+   * Handler for listing available prompts
+   */
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return {
+      prompts: [
+        {
+          name: "character-analysis",
+          description: "Analyze a Rick and Morty character's personality, role, and story arc",
+          arguments: [
+            {
+              name: "character_name",
+              description: "Name of the character to analyze",
+              required: true
+            }
+          ]
+        },
+        {
+          name: "episode-summary",
+          description: "Get a summary request for a specific episode with its characters",
+          arguments: [
+            {
+              name: "episode_code",
+              description: "Episode code (e.g., S01E01)",
+              required: true
+            }
+          ]
+        },
+        {
+          name: "character-comparison",
+          description: "Compare two characters from the show",
+          arguments: [
+            {
+              name: "character1",
+              description: "First character name",
+              required: true
+            },
+            {
+              name: "character2",
+              description: "Second character name",
+              required: true
+            }
+          ]
+        }
+      ]
+    };
+  });
+
+  /**
+   * Handler for getting prompts
+   */
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const {name, arguments: args} = request.params;
+
+    switch (name) {
+      case "character-analysis": {
+        const characterName = args?.character_name as string;
+        if (!characterName) {
+          throw new Error("character_name argument is required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please analyze the Rick and Morty character "${characterName}". Use the query tool to fetch their information first, then provide insights about:
+
+1. Their personality traits and characteristics
+2. Their role in the show and relationships with other characters
+3. Their character development throughout the series
+4. Notable episodes or story arcs they're involved in
+5. What makes them unique or memorable
+
+Start by using the query tool to fetch character data by searching for characters with name="${characterName}".`
+              }
+            }
+          ]
+        };
+      }
+
+      case "episode-summary": {
+        const episodeCode = args?.episode_code as string;
+        if (!episodeCode) {
+          throw new Error("episode_code argument is required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please provide information about Rick and Morty episode ${episodeCode}. Use the query tool to:
+
+1. Fetch the episode details (name, air date, episode code)
+2. Get information about the main characters appearing in this episode
+3. Summarize what you can determine about the episode based on its title and characters
+
+Start by querying episodes with the filter episode="${episodeCode}".`
+              }
+            }
+          ]
+        };
+      }
+
+      case "character-comparison": {
+        const character1 = args?.character1 as string;
+        const character2 = args?.character2 as string;
+
+        if (!character1 || !character2) {
+          throw new Error("Both character1 and character2 arguments are required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please compare the Rick and Morty characters "${character1}" and "${character2}". Use the query tool to fetch information about both characters, then compare:
+
+1. Their personalities and character traits
+2. Their roles and importance in the show
+3. Their relationships with other characters
+4. Their character development
+5. Similarities and differences between them
+
+Start by querying for each character separately using their names.`
+              }
+            }
+          ]
+        };
+      }
+
+      default:
+        throw new Error(`Unknown prompt: ${name}`);
+    }
+  });
+
+  /**
    * Handler for calling tools
    */
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const {name, arguments: args} = request.params;
-
-    // Block OAuth tools if disabled
-    if (disableOAuth && name.startsWith("oauth_")) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `OAuth functionality is disabled for this server connection.`
-          }
-        ],
-        isError: true
-      };
-    }
 
     switch (name) {
       case "query": {
@@ -271,7 +491,25 @@ export function createMCPServer(): Server {
     }
   });
 
-
-
   return server;
 }
+
+/**
+ * Main entry point - starts the server
+ */
+async function main() {
+  const server = createMCPServer();
+
+  // Connect to stdio transport
+  const {StdioServerTransport} = await import("@modelcontextprotocol/sdk/server/stdio.js");
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  // Log to stderr so it doesn't interfere with MCP communication
+  console.error("Rick and Morty MCP server running on stdio");
+}
+
+main().catch((error) => {
+  console.error("Fatal error in main():", error);
+  process.exit(1);
+});

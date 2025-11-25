@@ -2,7 +2,7 @@
   "mcpServers": {
     "rick_n_morty": {
       "command": "/Users/dyelland/.nvm/versions/node/v22.15.0/bin/node",
-      "args": ["/Users/dyelland/Repos/mcp-example/build/stdio-server.js"],
+      "args": ["/Users/dyelland/Repos/mcp-example/build/stdio.js"],
       "note": "Example for use in claude_desktop_config.json"
     }
   }
