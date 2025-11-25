@@ -1,11 +1,6 @@
 {
   "mcpServers": {
-    "rick_n_morty_http": {
-      "type": "streamable-http",
-      "url": "http://localhost:3000/mcp",
-      "note": "For Streamable HTTP connections, add this URL directly in your MCP Client"
-    },
-    "rick_n_morty_stdio": {
+    "rick_n_morty": {
       "command": "/Users/dyelland/.nvm/versions/node/v22.15.0/bin/node",
       "args": ["/Users/dyelland/Repos/mcp-example/build/stdio-server.js"],
       "note": "Example for use in claude_desktop_config.json"
