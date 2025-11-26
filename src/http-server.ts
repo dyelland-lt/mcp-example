@@ -2,22 +2,22 @@
 
 import express from "express";
 import cors from "cors";
+import https from "https";
+import fs from "fs";
+import path from "path";
+import {networkInterfaces} from "os";
 import {StreamableHTTPServerTransport} from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {createMCPServer} from "./server.js";
-import {createOAuth2Middleware} from "./auth-server/middleware.js";
 
 /**
- * HTTP Server for MCP with Streamable HTTP Transport and OAuth
+ * HTTPS Server for MCP with Streamable HTTP Transport
  *
- * This server provides both the MCP server and a mock OAuth server for development/testing.
- * The MCP server uses streamable HTTP for communication, and OAuth endpoints are available
- * under /oauth2. MCP clients can authenticate directly with the OAuth endpoints without
- * requiring the MCP SDK's proxy provider layer.
+ * This server provides the MCP server using streamable HTTPS for communication.
  */
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const HOST = process.env.HOST || "localhost";
-const BASE_URL = `http://${HOST}:${PORT}`;
+const BASE_URL = `https://${HOST}:${PORT}`;
 
 const app = express();
 
@@ -32,9 +32,12 @@ app.use(
 // Parse JSON bodies
 app.use(express.json());
 
-// Health check endpoint (MUST be before OAuth router to avoid being caught by catch-all)
+// Health check endpoint
 app.get("/health", (_req, res) => {
-  res.json({status: "healthy", timestamp: new Date().toISOString()});
+  res.json({
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Create a single MCP server instance
@@ -50,7 +53,6 @@ const transport = new StreamableHTTPServerTransport({
 await server.connect(transport);
 
 // MCP endpoint for streamable HTTP (handles both GET for SSE and POST for messages)
-// MUST be before OAuth router to avoid being caught by catch-all
 app.all("/mcp", async (req, res) => {
   console.log(`${req.method} request to /mcp`);
 
@@ -67,36 +69,55 @@ app.all("/mcp", async (req, res) => {
   }
 });
 
-// Initialize mock OAuth2 server middleware
-// IMPORTANT: This MUST be mounted AFTER /health and /mcp routes
-// because it has a catch-all handler that forwards unmatched requests to the OAuth server
-const {router: oauth2Router} = await createOAuth2Middleware({
-  issuerUrl: BASE_URL
-});
+// Load SSL certificates
+const certPath = path.join(process.cwd(), "certs", "localhost-cert.pem");
+const keyPath = path.join(process.cwd(), "certs", "localhost-key.pem");
 
-// Mount OAuth2 endpoints at root (will handle OAuth paths and forward unknown to mock server)
-app.use("/", oauth2Router);
+const httpsOptions = {
+  cert: fs.readFileSync(certPath),
+  key: fs.readFileSync(keyPath)
+};
 
-console.log("\n🔧 OAuth2 Server Configuration:");
-console.log(`  Issuer URL: ${BASE_URL}`);
-console.log(`  Authorization Endpoint: ${BASE_URL}/authorize`);
-console.log(`  Token Endpoint: ${BASE_URL}/token`);
-console.log(`  Discovery: ${BASE_URL}/.well-known/oauth-authorization-server`);
+// Start the HTTPS server
+const httpsServer = https.createServer(httpsOptions, app);
+httpsServer.listen(PORT, HOST, () => {
+  console.log(`🚀 MCP HTTPS Server running on ${BASE_URL}`);
+  console.log("\n📡 Endpoints:");
+  console.log(`  MCP:    ${BASE_URL}/mcp`);
+  console.log(`  Health: ${BASE_URL}/health`);
 
-// Start the server
-const httpServer = app.listen(PORT, HOST, () => {
-  console.log(`🚀 Consolidated Server running on ${BASE_URL}`);
-  console.log("\n📡 MCP Endpoints:");
-  console.log(`  MCP:         ${BASE_URL}/mcp`);
-  console.log(`  Health:      ${BASE_URL}/health`);
-  console.log("\n🔐 OAuth2 Endpoints:");
-  console.log(`  Authorization: ${BASE_URL}/authorize`);
-  console.log(`  Token:         ${BASE_URL}/token`);
-  console.log(`  Revocation:    ${BASE_URL}/revoke`);
-  console.log(`  Registration:  ${BASE_URL}/register`);
-  console.log(`  JWKS:          ${BASE_URL}/jwks`);
-  console.log(`  Discovery:     ${BASE_URL}/.well-known/oauth-authorization-server`);
-  console.log("\n✅ Server ready");
+  // Check for local network IP and warn about SSL certificate
+  if (HOST === "0.0.0.0" || HOST === "localhost") {
+    const nets = networkInterfaces();
+    const localIPs: string[] = [];
+
+    for (const name of Object.keys(nets)) {
+      const netInfo = nets[name];
+      if (!netInfo) continue;
+
+      for (const net of netInfo) {
+        // Skip internal (loopback) and non-IPv4 addresses
+        if (net.family === "IPv4" && !net.internal) {
+          localIPs.push(net.address);
+        }
+      }
+    }
+
+    if (localIPs.length > 0) {
+      console.log("\n⚠️  Local Network Access:");
+      console.log(`  Your machine's IP: ${localIPs.join(", ")}`);
+      console.log(`  For Claude Desktop, use: https://${localIPs[0]}:${PORT}/mcp`);
+      console.log("\n⚠️  SSL Certificate Warning:");
+      console.log(`  Current certificate is valid for: localhost, 127.0.0.1`);
+      console.log(`  To access via ${localIPs[0]}, you need to regenerate the certificate.`);
+      console.log(`  Run: openssl req -x509 -newkey rsa:4096 -keyout certs/localhost-key.pem \\`);
+      console.log(`       -out certs/localhost-cert.pem -days 365 -nodes \\`);
+      console.log(`       -subj "/CN=localhost" \\`);
+      console.log(`       -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:${localIPs[0]}"`);
+    }
+  }
+
+  console.log("\n✅ Server ready (secured with TLS)");
 });
 
 // Handle graceful shutdown
@@ -104,8 +125,7 @@ const shutdown = async () => {
   console.log("\nShutting down server...");
   await transport.close();
   await server.close();
-  // Note: oauth2Server doesn't need to be stopped since it's used as middleware
-  httpServer.close(() => {
+  httpsServer.close(() => {
     console.log("Server closed");
     process.exit(0);
   });

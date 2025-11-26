@@ -3,62 +3,23 @@
 import {Server} from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
   ReadResourceRequestSchema,
-  ListResourceTemplatesRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import {GraphQLClient} from "graphql-request";
-import {parse, OperationDefinitionNode} from "graphql";
-import { tokenManager } from "./token-manager.js";
-import {
-  createOAuthState,
-  buildAuthorizationUrl,
-  exchangeCodeForToken,
-  type OAuthConfig
-} from "./oauth.js";
 
 /**
- * Example MCP Server
+ * Rick and Morty MCP Server
  *
- * This server demonstrates basic MCP functionality with:
- * - Tools: Functions that can be called by the client
- * - Resources: Data that can be read by the client
- * - OAuth: Authentication flow for GraphQL APIs
+ * This server provides access to the Rick and Morty GraphQL API
+ * through the Model Context Protocol.
  */
-
-// Sample in-memory data store
-const notes: {[key: string]: string} = {
-  welcome: "Welcome to the example MCP server!",
-  info: "This server demonstrates basic MCP capabilities."
-};
 
 // GraphQL configuration
 const GRAPHQL_ENDPOINT = "https://rickandmortyapi.com/graphql";
-
-/**
- * Validates that a GraphQL query is read-only (no mutations)
- * @throws Error if the query contains mutations
- */
-function validateReadOnlyQuery(query: string): void {
-  try {
-    const document = parse(query);
-
-    for (const definition of document.definitions) {
-      if (definition.kind === 'OperationDefinition') {
-        const operation = definition as OperationDefinitionNode;
-        if (operation.operation === 'mutation') {
-          throw new Error('Mutations are not allowed. Only queries are permitted.');
-        }
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Mutations are not allowed')) {
-      throw error;
-    }
-    throw new Error(`Invalid GraphQL query: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
 
 /**
  * Creates a GraphQL client with configured endpoint
@@ -75,19 +36,17 @@ async function createGraphQLClient(): Promise<GraphQLClient> {
  * Creates and configures the MCP server with all handlers
  * @param options Configuration options for the server
  */
-export function createMCPServer(options?: { disableOAuth?: boolean }): Server {
-  const disableOAuth = options?.disableOAuth ?? false;
-
-  // Create server instance
+export function createMCPServer(): Server {
   const server = new Server(
     {
-      name: "example-mcp-server",
-      version: "1.0.0"
+      name: "rick-and-morty-mcp-server",
+      version: "1.0.0",
     },
     {
       capabilities: {
         tools: {},
-        resources: {}
+        resources: {},
+        prompts: {},
       }
     }
   );
@@ -138,23 +97,237 @@ export function createMCPServer(options?: { disableOAuth?: boolean }): Server {
   });
 
   /**
+   * Handler for listing available resources
+   */
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    return {
+      resources: [
+        {
+          uri: "rickandmorty://characters/popular",
+          name: "Popular Characters",
+          description: "A curated list of popular Rick and Morty characters with their details",
+          mimeType: "application/json"
+        },
+        {
+          uri: "rickandmorty://info/api",
+          name: "API Information",
+          description: "Information about the Rick and Morty API capabilities and structure",
+          mimeType: "text/plain"
+        }
+      ]
+    };
+  });
+
+  /**
+   * Handler for reading resources
+   */
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const uri = request.params.uri;
+
+    if (uri === "rickandmorty://characters/popular") {
+      try {
+        const client = await createGraphQLClient();
+        // Get first few main characters (Rick, Morty, Summer, Beth, Jerry)
+        const query = `query {
+          charactersByIds(ids: ["1", "2", "3", "4", "5"]) {
+            id name status species type gender
+            origin { name }
+            location { name }
+            image
+          }
+        }`;
+        const data = await client.request(query);
+
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: "application/json",
+              text: JSON.stringify(data, null, 2)
+            }
+          ]
+        };
+      } catch (error) {
+        throw new Error(`Failed to fetch popular characters: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (uri === "rickandmorty://info/api") {
+      const apiInfo = `Rick and Morty API Information
+================================
+
+Endpoint: ${GRAPHQL_ENDPOINT}
+
+Available Queries:
+- Characters: Query characters by ID, filters (name, status, species, type, gender), or multiple IDs
+- Episodes: Query episodes by ID, filters (name, episode code), or multiple IDs
+- Locations: Query locations by ID, filters (name, type, dimension), or multiple IDs
+
+Character Statuses: Alive, Dead, unknown
+Character Genders: Female, Male, Genderless, unknown
+
+The API supports pagination for list queries (20 results per page by default).
+
+Note: This is a public API with no authentication required.`;
+
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "text/plain",
+            text: apiInfo
+          }
+        ]
+      };
+    }
+
+    throw new Error(`Unknown resource: ${uri}`);
+  });
+
+  /**
+   * Handler for listing available prompts
+   */
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return {
+      prompts: [
+        {
+          name: "character-analysis",
+          description: "Analyze a Rick and Morty character's personality, role, and story arc",
+          arguments: [
+            {
+              name: "character_name",
+              description: "Name of the character to analyze",
+              required: true
+            }
+          ]
+        },
+        {
+          name: "episode-summary",
+          description: "Get a summary request for a specific episode with its characters",
+          arguments: [
+            {
+              name: "episode_code",
+              description: "Episode code (e.g., S01E01)",
+              required: true
+            }
+          ]
+        },
+        {
+          name: "character-comparison",
+          description: "Compare two characters from the show",
+          arguments: [
+            {
+              name: "character1",
+              description: "First character name",
+              required: true
+            },
+            {
+              name: "character2",
+              description: "Second character name",
+              required: true
+            }
+          ]
+        }
+      ]
+    };
+  });
+
+  /**
+   * Handler for getting prompts
+   */
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const {name, arguments: args} = request.params;
+
+    switch (name) {
+      case "character-analysis": {
+        const characterName = args?.character_name as string;
+        if (!characterName) {
+          throw new Error("character_name argument is required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please analyze the Rick and Morty character "${characterName}". Use the query tool to fetch their information first, then provide insights about:
+
+1. Their personality traits and characteristics
+2. Their role in the show and relationships with other characters
+3. Their character development throughout the series
+4. Notable episodes or story arcs they're involved in
+5. What makes them unique or memorable
+
+Start by using the query tool to fetch character data by searching for characters with name="${characterName}".`
+              }
+            }
+          ]
+        };
+      }
+
+      case "episode-summary": {
+        const episodeCode = args?.episode_code as string;
+        if (!episodeCode) {
+          throw new Error("episode_code argument is required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please provide information about Rick and Morty episode ${episodeCode}. Use the query tool to:
+
+1. Fetch the episode details (name, air date, episode code)
+2. Get information about the main characters appearing in this episode
+3. Summarize what you can determine about the episode based on its title and characters
+
+Start by querying episodes with the filter episode="${episodeCode}".`
+              }
+            }
+          ]
+        };
+      }
+
+      case "character-comparison": {
+        const character1 = args?.character1 as string;
+        const character2 = args?.character2 as string;
+
+        if (!character1 || !character2) {
+          throw new Error("Both character1 and character2 arguments are required");
+        }
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Please compare the Rick and Morty characters "${character1}" and "${character2}". Use the query tool to fetch information about both characters, then compare:
+
+1. Their personalities and character traits
+2. Their roles and importance in the show
+3. Their relationships with other characters
+4. Their character development
+5. Similarities and differences between them
+
+Start by querying for each character separately using their names.`
+              }
+            }
+          ]
+        };
+      }
+
+      default:
+        throw new Error(`Unknown prompt: ${name}`);
+    }
+  });
+
+  /**
    * Handler for calling tools
    */
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const {name, arguments: args} = request.params;
-
-    // Block OAuth tools if disabled
-    if (disableOAuth && name.startsWith("oauth_")) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `OAuth functionality is disabled for this server connection.`
-          }
-        ],
-        isError: true
-      };
-    }
 
     switch (name) {
       case "query": {
@@ -299,34 +472,7 @@ export function createMCPServer(options?: { disableOAuth?: boolean }): Server {
             ]
           };
         } catch (error) {
-          // Check if error is due to token expiration or authentication
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-          // If token refresh failed during createGraphQLClient, the tokenManager will have cleared tokens
-          if (!tokenManager.isAuthenticated() && errorMessage.includes('refresh')) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `Authentication expired and token refresh failed: ${errorMessage}\n\nPlease re-authenticate using oauth_initiate.`
-                }
-              ],
-              isError: true
-            };
-          }
-
-          // Check for 401/403 authentication errors
-          if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('Unauthorized')) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `GraphQL API authentication error: ${errorMessage}\n\nYour access token may be invalid or lack required permissions. Please check your OAuth configuration and re-authenticate if needed.`
-                }
-              ],
-              isError: true
-            };
-          }
 
           return {
             content: [
@@ -343,93 +489,6 @@ export function createMCPServer(options?: { disableOAuth?: boolean }): Server {
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
-  });
-
-  /**
-   * Handler for listing available resources
-   */
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    return {
-      resources: [
-        {
-          uri: "note://welcome",
-          name: "Welcome Note",
-          mimeType: "text/plain",
-          description: "A welcome message"
-        },
-        {
-          uri: "note://info",
-          name: "Info Note",
-          mimeType: "text/plain",
-          description: "Information about this server"
-        },
-        ...Object.keys(notes)
-          .filter((key) => !["welcome", "info"].includes(key))
-          .map((key) => ({
-            uri: `note://${key}`,
-            name: `Note: ${key}`,
-            mimeType: "text/plain",
-            description: `User-created note with key: ${key}`
-          }))
-      ]
-    };
-  });
-
-  /**
-   * Handler for listing available resource templates
-   */
-  server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
-    return {
-      resourceTemplates: [
-        {
-          uriTemplate: "note://{key}",
-          name: "Note by Key",
-          description: "Access any note by its key",
-          mimeType: "text/plain"
-        },
-        {
-          uriTemplate: "user://{userId}/profile",
-          name: "User Profile",
-          description: "Get user profile information by user ID",
-          mimeType: "application/json"
-        },
-        {
-          uriTemplate: "file://{path}",
-          name: "File Content",
-          description: "Access file content by path",
-          mimeType: "text/plain"
-        }
-      ]
-    };
-  });
-
-  /**
-   * Handler for reading resources
-   */
-  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    const uri = request.params.uri;
-    const match = uri.match(/^note:\/\/(.+)$/);
-
-    if (!match) {
-      throw new Error(`Invalid URI format: ${uri}`);
-    }
-
-    const noteKey = match[1];
-    const content = notes[noteKey];
-
-    if (!content) {
-      throw new Error(`Note not found: ${noteKey}`);
-    }
-
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: "text/plain",
-          text: content
-        }
-      ]
-    };
   });
 
   return server;

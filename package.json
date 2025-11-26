@@ -6,18 +6,9 @@
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
-    "start:http": "nodemon",
-    "start:stdio": "node build/stdio-server.js",
-    "start:stdio:oauth": "node build/stdio-server-with-oauth.js",
-    "start:auth": "node build/auth-server/index.js",
-    "get-tokens": "node build/get-oauth-tokens.js",
-    "dev:http": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http",
-    "dev:stdio": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_stdio",
-    "dev:auth": "nodemon --watch src/auth-server --exec node build/auth-server/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "start": "nodemon",
+    "start:public": "./start-public.sh",
+    "dev": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http"
   },
   "keywords": [
     "mcp",
@@ -38,11 +29,8 @@
     "@types/cors": "2.8.19",
     "@types/express": "5.0.5",
     "@types/node": "^22.0.0",
-    "@vitest/ui": "4.0.13",
     "nodemon": "3.1.11",
-    "oauth2-mock-server": "8.2.0",
     "tsx": "4.20.6",
-    "typescript": "^5.6.3",
-    "vitest": "4.0.13"
+    "typescript": "^5.6.3"
   }
 }
