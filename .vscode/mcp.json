@@ -1,10 +1,9 @@
 {
-  "servers": {
-    "rick_n_morty": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["${workspaceFolder}/build/stdio.js"]
-    }
-  },
-  "inputs": []
+	"servers": {
+		"rick_n_morty": {
+			"url": "http://localhost:3000/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
 }

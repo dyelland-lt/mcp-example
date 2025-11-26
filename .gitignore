@@ -140,3 +140,7 @@ vite.config.ts.timestamp-*
 build
 
 .DS_Store
+
+# SSL/TLS certificates
+certs/
+*.pem

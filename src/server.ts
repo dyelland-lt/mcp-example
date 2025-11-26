@@ -493,23 +493,3 @@ Start by querying for each character separately using their names.`
 
   return server;
 }
-
-/**
- * Main entry point - starts the server
- */
-async function main() {
-  const server = createMCPServer();
-
-  // Connect to stdio transport
-  const {StdioServerTransport} = await import("@modelcontextprotocol/sdk/server/stdio.js");
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-
-  // Log to stderr so it doesn't interfere with MCP communication
-  console.error("Rick and Morty MCP server running on stdio");
-}
-
-main().catch((error) => {
-  console.error("Fatal error in main():", error);
-  process.exit(1);
-});
