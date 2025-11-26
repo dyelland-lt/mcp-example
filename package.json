@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "nodemon",
     "start:public": "./start-public.sh",
-    "dev": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_http"
+    "dev": "pnpx @modelcontextprotocol/inspector --config src/config.json --server rick_n_morty_https"
   },
   "keywords": [
     "mcp",

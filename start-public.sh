@@ -3,6 +3,15 @@
 echo "🚀 Starting MCP server and ngrok tunnel..."
 echo ""
 
+# Check and generate SSL certificates if needed
+if [ ! -f "certs/localhost-cert.pem" ] || [ ! -f "certs/localhost-key.pem" ]; then
+    echo "🔒 Generating SSL certificates..."
+    mkdir -p certs
+    mkcert -cert-file certs/localhost-cert.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+    echo "✅ Certificates generated"
+    echo ""
+fi
+
 # Start the MCP server in the background
 echo "📦 Starting MCP server on https://localhost:3000..."
 HOST=0.0.0.0 pnpm start &
